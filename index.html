@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -168,7 +169,66 @@
       font-size: 14px;
       line-height: 1.65;
     }
-    #copyMessage { min-height: 20px; margin: 7px 0 0; color: var(--green); text-align: center; font-weight: 700; }
+    #copyMessage {
+      min-height: 20px;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 8px;
+      color: #075d2a;
+      background: #e6f7eb;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    #copyMessage:empty { margin: 0; padding: 0; background: transparent; }
+    .copy-confirmation {
+      position: fixed;
+      z-index: 100;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(8, 105, 51, 0.96);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.16s ease, visibility 0.16s linear;
+    }
+    .copy-confirmation.visible {
+      visibility: visible;
+      opacity: 1;
+      animation: copy-flash 0.55s ease-out 2;
+    }
+    .copy-confirmation-card {
+      width: min(100%, 650px);
+      padding: 30px 22px;
+      border: 5px solid #fff;
+      border-radius: 20px;
+      color: #fff;
+      background: #0d7338;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
+      text-align: center;
+    }
+    .copy-confirmation-check {
+      display: grid;
+      place-items: center;
+      width: 86px;
+      height: 86px;
+      margin: 0 auto 14px;
+      border: 5px solid #fff;
+      border-radius: 50%;
+      font-size: 57px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .copy-confirmation-title { font-size: clamp(38px, 10vw, 72px); font-weight: 800; letter-spacing: 0.035em; line-height: 1; }
+    .copy-confirmation-detail { margin-top: 13px; font-size: clamp(17px, 4vw, 24px); font-weight: 700; }
+    @keyframes copy-flash {
+      50% { background: rgba(25, 156, 75, 0.98); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .copy-confirmation, .copy-confirmation.visible { transition: none; animation: none; }
+    }
     @media (max-width: 620px) {
       .measurement-grid, .measurement-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -188,7 +248,7 @@
   <main>
     <h1>Oil Change Checklist</h1>
     <p class="intro">Complete every inspection, then copy the finished work-order story.</p>
-    <div class="progress" id="progress">0 OF 13 INSPECTIONS COMPLETE</div>
+    <div class="progress" id="progress">0 OF 15 INSPECTIONS COMPLETE</div>
 
     <form id="checklist" novalidate>
       <div id="sections"></div>
@@ -200,12 +260,20 @@
       <h2>Work-Order Story</h2>
       <p class="section-note">Copy and paste this directly into the work order.</p>
       <textarea id="result" readonly></textarea>
+      <p id="copyMessage" role="status" aria-live="polite"></p>
       <button type="button" id="copyButton">COPY STORY</button>
       <button type="button" class="new-checklist" id="newButton">START NEW CHECKLIST</button>
       <a href="#" class="edit-link" id="editLink">EDIT THIS CHECKLIST</a>
-      <p id="copyMessage"></p>
     </section>
   </main>
+
+  <div id="copyConfirmation" class="copy-confirmation" role="status" aria-live="assertive" aria-atomic="true" aria-hidden="true">
+    <div class="copy-confirmation-card">
+      <div class="copy-confirmation-check" aria-hidden="true">✓</div>
+      <div class="copy-confirmation-title">STORY COPIED</div>
+      <div id="copyConfirmationDetail" class="copy-confirmation-detail">READY TO PASTE</div>
+    </div>
+  </div>
 
   <script>
     const sections = [
@@ -217,6 +285,14 @@
           { id: 'oilReset', label: 'Oil-life monitor reset', options: ['YES', 'NO', 'N/A'], detailOn: ['NO'], lines: { YES: 'OIL LIFE MONITOR RESET.', 'N/A': 'OIL LIFE MONITOR RESET IS NOT APPLICABLE.' }, failed: 'OIL LIFE MONITOR WAS NOT RESET', suggestions: { NO: ['Monitor could not be reset', 'Reset option not available', 'Warning message remains on display'] } },
           { id: 'washerFluid', label: 'Washer fluid', options: ['TOPPED UP', 'FULL', 'OUT OF SPEC', 'N/A'], detailOn: ['OUT OF SPEC'], lines: { 'TOPPED UP': 'WASHER FLUID TOPPED UP.', FULL: 'WASHER FLUID LEVEL IS FULL.', 'N/A': 'WASHER FLUID SERVICE IS NOT APPLICABLE.' }, failed: 'WASHER FLUID REQUIRES ATTENTION', suggestions: { 'OUT OF SPEC': ['Washer fluid leaking', 'Washer pump inoperative', 'Reservoir damaged or empty'] } },
           { id: 'otherFluids', label: 'All other fluid levels', options: ['ALL GOOD', 'OUT OF SPEC', 'N/A'], detailOn: ['OUT OF SPEC'], lines: { 'ALL GOOD': 'ALL OTHER FLUID LEVELS ARE WITHIN SPECIFICATION.', 'N/A': 'INSPECTION OF OTHER FLUID LEVELS IS NOT APPLICABLE.' }, failed: 'OTHER FLUID LEVELS REQUIRE ATTENTION', suggestions: { 'OUT OF SPEC': ['Coolant level low', 'Brake fluid level low', 'Power-steering fluid level low'] } }
+        ]
+      },
+      {
+        title: 'Air Filters',
+        note: 'Record the filter condition, replacement, or a declined inspection.',
+        items: [
+          { id: 'cabinAirFilter', label: 'Cabin air filter', options: ['GOOD', 'BAD', 'REPLACED', 'CUSTOMER DECLINED CHECK'], detailOn: ['BAD'], lines: { GOOD: 'CABIN AIR FILTER IS IN GOOD CONDITION.', REPLACED: 'CABIN AIR FILTER REPLACED.', 'CUSTOMER DECLINED CHECK': 'CUSTOMER DECLINED CABIN AIR FILTER INSPECTION.' }, failed: 'CABIN AIR FILTER REQUIRES ATTENTION', suggestions: { BAD: ['Filter heavily soiled', 'Filter restricted', 'Filter damaged or deformed'] } },
+          { id: 'engineAirFilter', label: 'Engine air filter', options: ['GOOD', 'BAD', 'REPLACED', 'CUSTOMER DECLINED CHECK'], detailOn: ['BAD'], lines: { GOOD: 'ENGINE AIR FILTER IS IN GOOD CONDITION.', REPLACED: 'ENGINE AIR FILTER REPLACED.', 'CUSTOMER DECLINED CHECK': 'CUSTOMER DECLINED ENGINE AIR FILTER INSPECTION.' }, failed: 'ENGINE AIR FILTER REQUIRES ATTENTION', suggestions: { BAD: ['Filter heavily soiled', 'Filter restricted', 'Filter damaged or torn'] } }
         ]
       },
       {
@@ -263,6 +339,7 @@
     ]);
     const batteryResultItem = allItems.find(item => item.id === 'batteryResult');
     const sectionContainer = document.getElementById('sections');
+    let copyConfirmationTimer;
     const treadDepthOptions = [''].concat(Array.from({ length: 21 }, (_, value) => value))
       .map(value => `<option value="${value}">${value === '' ? 'SELECT' : value}</option>`).join('');
 
@@ -351,12 +428,29 @@
       const completed = allItems.filter(item => selected(item.id)).length;
       document.getElementById('progress').textContent = `${completed} OF ${allItems.length} INSPECTIONS COMPLETE`;
     }
+    function setCopyMessage(message, state = '') {
+      const copyMessage = document.getElementById('copyMessage');
+      copyMessage.textContent = message;
+      copyMessage.className = state;
+    }
+    function hideCopyConfirmation() {
+      const confirmation = document.getElementById('copyConfirmation');
+      confirmation.classList.remove('visible');
+      confirmation.setAttribute('aria-hidden', 'true');
+    }
+    function showCopyConfirmation() {
+      const confirmation = document.getElementById('copyConfirmation');
+      confirmation.classList.add('visible');
+      confirmation.setAttribute('aria-hidden', 'false');
+      clearTimeout(copyConfirmationTimer);
+      copyConfirmationTimer = setTimeout(hideCopyConfirmation, 1800);
+    }
     function resetChecklist() {
       document.getElementById('checklist').reset();
       document.querySelectorAll('.detail.visible').forEach(detail => detail.classList.remove('visible'));
       document.querySelectorAll('.suggestion-set').forEach(set => { set.hidden = true; });
       document.getElementById('result').value = '';
-      document.getElementById('copyMessage').textContent = '';
+      setCopyMessage('');
       updateProgress();
     }
     function updateSuggestions(item, answer) {
@@ -380,7 +474,6 @@
         event.target.value = event.target.value.replace(/\D/g, '').slice(0, 4);
       }
     });
-
     function validate() {
       for (const item of allItems) {
         const answer = selected(item.id);
@@ -446,22 +539,20 @@
       document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
-    document.getElementById('copyButton').addEventListener('click', async () => {
+    document.getElementById('copyButton').addEventListener('click', () => {
       const result = document.getElementById('result');
-      try {
-        await navigator.clipboard.writeText(result.value);
-      } catch (_) {
-        result.select();
-        document.execCommand('copy');
-      }
-      document.getElementById('copyMessage').textContent = 'STORY COPIED';
+      result.focus();
+      result.select();
+      document.execCommand('copy');
+      showCopyConfirmation();
+      setCopyMessage('STORY COPIED');
     });
     document.getElementById('editLink').addEventListener('click', event => {
       event.preventDefault();
       document.getElementById('resultSection').style.display = 'none';
       document.getElementById('checklist').style.display = 'block';
       document.getElementById('progress').style.display = 'block';
-      document.getElementById('copyMessage').textContent = '';
+      setCopyMessage('');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
     document.getElementById('resetButton').addEventListener('click', () => {
