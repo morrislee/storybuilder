@@ -331,7 +331,7 @@
         note: 'Enter actual measurements; these are intentionally required.',
         items: [],
         tireItems: [
-          { id: 'tireRotation', label: 'Tire rotation recommended', options: ['YES', 'NO', 'CUSTOMER DECLINED'], detailOn: ['YES'], lines: { NO: 'TIRE ROTATION IS NOT RECOMMENDED.', 'CUSTOMER DECLINED': 'TIRE ROTATION RECOMMENDED; CUSTOMER DECLINED.' }, failed: 'TIRE ROTATION IS RECOMMENDED', detailLabel: 'Required recommendation note', suggestions: { YES: ['Rotation due per maintenance schedule', 'Rotation due at this service', 'Recommend rotation to promote even wear'] } }
+          { id: 'tireRotation', label: 'Tire rotation recommended', options: ['YES', 'NO', 'CUSTOMER DECLINED'], detailOn: [], lines: { YES: 'TIRE ROTATION IS RECOMMENDED.', NO: 'TIRE ROTATION IS NOT RECOMMENDED.', 'CUSTOMER DECLINED': 'TIRE ROTATION RECOMMENDED; CUSTOMER DECLINED.' } }
         ],
         measurements: true
       },
