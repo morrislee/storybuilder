@@ -62,6 +62,7 @@
       font-weight: 700;
     }
     .choice input:checked + span { color: #fff; background: var(--green); border-color: var(--green); }
+    .choice input:focus-visible + span { outline: 3px solid #d7e7ff; outline-offset: 2px; border-color: var(--blue); }
     .choice input:disabled + span { cursor: default; opacity: 0.68; }
     .choice input[value="NO"]:checked + span,
     .choice input[value="OUT OF SPEC"]:checked + span,
@@ -79,6 +80,8 @@
     .choice input[value="FULL"]:checked + span { background: var(--blue); border-color: var(--blue); }
     .choice input[value="FAIR"]:checked + span,
     .choice input[value="CHARGE & RETEST"]:checked + span { background: var(--amber); border-color: var(--amber); }
+    .choice.tire-rotation-choice input[value="NO"]:checked + span { background: var(--green); border-color: var(--green); }
+    .choice.tire-rotation-choice input[value="YES"]:checked + span { background: var(--amber); border-color: var(--amber); }
     .detail { display: none; margin-top: 10px; padding: 10px; background: #fff3f3; border-radius: 8px; }
     .detail.visible { display: block; }
     .detail label { display: block; color: #8b1717; font-weight: 700; }
@@ -153,7 +156,7 @@
     .coolant-control span { white-space: nowrap; font-size: 15px; font-weight: 700; }
     .coolant-entry-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
     .coolant-options { display: flex; flex-wrap: wrap; gap: 7px; }
-    .battery-options { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+    .battery-options { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; margin-top: 10px; }
     .pressure-profiles { margin: 0 0 10px; }
     .pressure-profiles .choice span { min-width: 148px; }
     .pressure-profiles strong { font-weight: 800; }
@@ -331,7 +334,7 @@
         note: 'Enter actual measurements; these are intentionally required.',
         items: [],
         tireItems: [
-          { id: 'tireRotation', label: 'Tire rotation recommended', options: ['YES', 'NO', 'CUSTOMER DECLINED'], detailOn: [], lines: { YES: 'TIRE ROTATION IS RECOMMENDED.', NO: 'TIRE ROTATION IS NOT RECOMMENDED.', 'CUSTOMER DECLINED': 'TIRE ROTATION RECOMMENDED; CUSTOMER DECLINED.' } }
+          { id: 'tireRotation', label: 'Recommend Tire Rotation?', options: ['NO', 'YES', 'CUSTOMER DECLINED'], detailOn: [], lines: { YES: 'RECOMMEND TIRE ROTATION.', 'CUSTOMER DECLINED': 'RECOMMEND TIRE ROTATION; CUSTOMER DECLINED.' } }
         ],
         measurements: true
       },
@@ -360,7 +363,8 @@
       .map(value => `<option value="${value}">${value === '' ? 'SELECT' : value}</option>`).join('');
 
     function createChoice(item, option) {
-      return `<label class="choice"><input type="radio" name="${item.id}" value="${option}"><span>${option}</span></label>`;
+      const choiceClass = item.id === 'tireRotation' ? 'choice tire-rotation-choice' : 'choice';
+      return `<label class="${choiceClass}"><input type="radio" name="${item.id}" value="${option}"><span>${option}</span></label>`;
     }
     function renderSuggestionSets(item) {
       return Object.entries(item.suggestions || {}).map(([answer, examples]) => `
@@ -708,6 +712,11 @@
       if (event.target.classList.contains('battery-voltage')) {
         event.target.value = formatBatteryVoltage(event.target.value);
       }
+    });
+    document.getElementById('batteryResultCca').addEventListener('keydown', event => {
+      if (event.key !== 'Tab' || event.shiftKey) return;
+      event.preventDefault();
+      document.querySelector('input[name="leaks"][value="NO LEAKS FOUND"]').focus();
     });
     function validate() {
       for (const item of allItems) {
