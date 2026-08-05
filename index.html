@@ -70,6 +70,7 @@
     .choice input[value="CANNOT GREASE"]:checked + span,
     .choice input[value="POOR"]:checked + span,
     .choice input[value="REPLACE"]:checked + span,
+    .choice input[value="DAMAGE / OTHER"]:checked + span,
     .choice input[value="LEAK FOUND"]:checked + span { background: var(--red); border-color: var(--red); }
     .choice input[value="N/A"]:checked + span,
     .choice input[value="UNABLE TO TEST"]:checked + span,
@@ -80,6 +81,7 @@
     .choice input[value="FULL"]:checked + span { background: var(--blue); border-color: var(--blue); }
     .choice input[value="FAIR"]:checked + span,
     .choice input[value="CHARGE & RETEST"]:checked + span { background: var(--amber); border-color: var(--amber); }
+    .choice input[value="UNEVEN WEAR"]:checked + span { background: var(--amber); border-color: var(--amber); }
     .choice.tire-rotation-choice input[value="NO"]:checked + span { background: var(--green); border-color: var(--green); }
     .choice.tire-rotation-choice input[value="YES"]:checked + span { background: var(--amber); border-color: var(--amber); }
     .detail { display: none; margin-top: 10px; padding: 10px; background: #fff3f3; border-radius: 8px; }
@@ -104,6 +106,7 @@
       font: inherit;
     }
     input::placeholder, textarea::placeholder { color: #aab4c0; opacity: 1; }
+    .battery-voltage::placeholder { color: #c5ccd4; }
     input:focus, select:focus, textarea:focus { outline: 3px solid #d7e7ff; border-color: var(--blue); }
     .measurement-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
     .measurement-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -335,6 +338,7 @@
         note: 'Enter actual measurements; these are intentionally required.',
         items: [],
         tireItems: [
+          { id: 'tireCondition', label: 'Tire condition', options: ['NO CONCERN', 'UNEVEN WEAR', 'DAMAGE / OTHER'], detailOn: ['UNEVEN WEAR', 'DAMAGE / OTHER'], lines: {}, failed: 'TIRE CONDITION', includeAnswerInDetail: true, suggestions: { 'UNEVEN WEAR': ['Inner shoulder wear', 'Outer shoulder wear', 'Cupping or scalloping', 'Feathering'], 'DAMAGE / OTHER': ['Sidewall damage', 'Tire bulge', 'Tread separation', 'Nail or screw in tread'] } },
           { id: 'tireRotation', label: 'Recommend Tire Rotation?', options: ['NO', 'YES', 'CUSTOMER DECLINED'], detailOn: [], lines: { YES: 'TIRE ROTATION RECOMMENDED TODAY.', 'CUSTOMER DECLINED': 'TIRE ROTATION RECOMMENDED TODAY; CUSTOMER DECLINED.' } }
         ],
         measurements: true
@@ -482,7 +486,7 @@
       if (item.combineWithMeasurements) return;
       if (item.lines[answer]) lines.push(item.lines[answer]);
       if (item.detailOn.includes(answer)) {
-        const prefix = item.includeAnswerInDetail ? `${item.failed} IS ${answer}:` : `${item.failed}:`;
+        const prefix = item.includeAnswerInDetail ? `${item.failed}: ${answer} —` : `${item.failed}:`;
         lines.push(`${prefix} ${detailText(`${item.id}Description`)}.`);
       }
     }
