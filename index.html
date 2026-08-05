@@ -273,7 +273,7 @@
     <p class="intro">Complete every inspection, then copy the finished work-order story.</p>
     <div class="progress" id="progress">0 OF 12 INSPECTIONS COMPLETE</div>
 
-    <form id="checklist" novalidate>
+    <form id="checklist" novalidate autocomplete="off">
       <div id="sections"></div>
       <button type="submit">GENERATE WORK-ORDER STORY</button>
       <button type="button" class="reset-form" id="resetButton">RESET FORM</button>
@@ -334,7 +334,7 @@
         note: 'Enter actual measurements; these are intentionally required.',
         items: [],
         tireItems: [
-          { id: 'tireRotation', label: 'Recommend Tire Rotation?', options: ['NO', 'YES', 'CUSTOMER DECLINED'], detailOn: [], lines: { YES: 'RECOMMEND TIRE ROTATION.', 'CUSTOMER DECLINED': 'RECOMMEND TIRE ROTATION; CUSTOMER DECLINED.' } }
+          { id: 'tireRotation', label: 'Recommend Tire Rotation?', options: ['NO', 'YES', 'CUSTOMER DECLINED'], detailOn: [], lines: { YES: 'TIRE ROTATION RECOMMENDED TODAY.', 'CUSTOMER DECLINED': 'TIRE ROTATION RECOMMENDED TODAY; CUSTOMER DECLINED.' } }
         ],
         measurements: true
       },
@@ -440,9 +440,9 @@
           <div class="item">
             <div class="item-label">Battery test</div>
             <div class="measurement-grid">
-              <label class="field">VOLTAGE <span class="units">(126 = 12.6 V)</span><input id="batteryVoltage" class="battery-voltage" inputmode="numeric" autocomplete="off" aria-label="Battery voltage; enter 126 for 12.6 volts" placeholder="12.6"></label>
+              <label class="field">VOLTAGE <span class="units">(125 = 12.50 V)</span><input id="batteryVoltage" class="battery-voltage" inputmode="numeric" maxlength="5" autocomplete="off" aria-label="Battery voltage; enter 125 for 12.50 volts" placeholder="12.50"></label>
               <label class="field">TEST RESULT <span class="units">(CCA)</span><input id="batteryResultCca" inputmode="numeric"></label>
-              <label class="field">TEST CCA <span class="units">(680 DEFAULT)</span><input id="testCcaSetting" class="clear-default-on-focus" inputmode="numeric" value="680" data-default-value="680" data-using-default="true"></label>
+              <label class="field">TEST CCA <span class="units">(700 DEFAULT)</span><input id="testCcaSetting" class="clear-default-on-focus" inputmode="numeric" value="700" data-default-value="700" data-using-default="true"></label>
             </div>
             <div class="battery-options">
               <label class="choice"><input type="checkbox" id="batteryCannotTest" value="CANNOT TEST"><span>CANNOT TEST</span></label>
@@ -461,6 +461,10 @@
             <label class="field">LOWER TECH <span class="units">(4 DIGITS)</span><input id="lowerTech" class="tech-number" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" autocomplete="off"></label>
           </div>` : '');
       sectionContainer.appendChild(element);
+    });
+
+    document.querySelectorAll('#checklist input, #checklist select, #checklist textarea').forEach(field => {
+      field.autocomplete = 'off';
     });
 
     function selected(id) {
@@ -553,9 +557,12 @@
       return true;
     }
     function formatBatteryVoltage(value, finalize = false) {
-      const digits = value.replace(/\D/g, '').slice(0, 3);
-      if (digits.length === 3) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
-      if (finalize && digits.length === 2) return `${digits.slice(0, 1)}.${digits.slice(1)}`;
+      const digits = value.replace(/\D/g, '').slice(0, 4);
+      if (digits.length === 4) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+      if (digits.length === 3) {
+        const oneDecimal = `${digits.slice(0, 2)}.${digits.slice(2)}`;
+        return finalize ? `${oneDecimal}0` : oneDecimal;
+      }
       return digits;
     }
     function updateCoolantTestState() {
@@ -763,6 +770,8 @@
         return false;
       }
       if (!batteryStatus) {
+        const batteryVoltage = document.getElementById('batteryVoltage');
+        batteryVoltage.value = formatBatteryVoltage(batteryVoltage.value, true);
         const batteryMeasurements = ['batteryVoltage', 'batteryResultCca', 'testCcaSetting'];
         const batteryMeasurementLabels = {
           batteryVoltage: 'BATTERY VOLTAGE',
@@ -776,10 +785,10 @@
             alert(`ENTER: ${batteryMeasurementLabels[id]}`);
             return false;
           }
-          if (id === 'batteryVoltage' && !/^\d{1,2}\.\d$/.test(text(id))) {
+          if (id === 'batteryVoltage' && !/^\d{2}\.\d{2}$/.test(text(id))) {
             const field = document.getElementById(id);
             field.focus();
-            alert('ENTER BATTERY VOLTAGE AS 126 FOR 12.6 V');
+            alert('ENTER BATTERY VOLTAGE AS 125 FOR 12.50 V');
             return false;
           }
         }
