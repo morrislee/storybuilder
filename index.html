@@ -127,10 +127,29 @@
     .all-tread-entry { max-width: 300px; margin: 0 auto 14px; padding: 10px; border: 1px solid #cbd7e5; border-radius: 8px; background: #f4f8fc; text-align: center; }
     .all-tread-entry .tread-control { justify-content: center; }
     .all-tread-entry select { width: 104px; }
+    .tread-heading-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+    .tread-heading-row .item-label { margin-bottom: 0; }
+    .dually-toggle span { min-width: 0; }
     .driver-front { grid-column: 1; grid-row: 2; }
     .passenger-front { grid-column: 3; grid-row: 2; }
-    .driver-rear { grid-column: 1; grid-row: 3; }
-    .passenger-rear { grid-column: 3; grid-row: 3; }
+    .driver-rear-pair { grid-column: 1; grid-row: 3; }
+    .passenger-rear-pair { grid-column: 3; grid-row: 3; }
+    .rear-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+    .rear-pair-heading { display: none; }
+    .rear-tread { display: block; text-align: center; font-size: 12px; font-weight: 700; }
+    .driver-rear-inner, .passenger-rear-inner { display: none; }
+    .dually-rear-label { display: none; }
+    .tire-map.is-dually { grid-template-rows: auto 1fr 1fr; }
+    .tire-map.is-dually .rear-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+    .tire-map.is-dually .rear-pair-heading { display: block; grid-column: 1 / -1; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+    .tire-map.is-dually .driver-rear-inner,
+    .tire-map.is-dually .passenger-rear-inner { display: block; }
+    .tire-map.is-dually .standard-rear-label { display: none; }
+    .tire-map.is-dually .dually-rear-label { display: block; }
+    .tire-map.is-dually .rear-tread .tread-control { gap: 2px; }
+    .tire-map.is-dually .rear-tread .tread-control select { padding: 8px 4px; font-size: 16px; }
+    .tire-map.is-dually .rear-tread .tread-unit { font-size: 12px; }
+    .rotation-completed { margin-top: 10px; }
     .car-top {
       position: relative;
       grid-column: 2;
@@ -152,6 +171,8 @@
     }
     .car-top::before { top: 39px; left: -18px; box-shadow: 0 119px 0 #26364b; }
     .car-top::after { top: 39px; right: -18px; box-shadow: 0 119px 0 #26364b; }
+    .tire-map.is-dually .car-top::before { box-shadow: 0 119px 0 #26364b, -16px 119px 0 #26364b; }
+    .tire-map.is-dually .car-top::after { box-shadow: 0 119px 0 #26364b, 16px 119px 0 #26364b; }
     .car-top-label { position: absolute; top: 10px; left: 0; right: 0; color: #26364b; text-align: center; font-size: 11px; font-weight: 700; letter-spacing: .06em; }
     .field { display: block; font-size: 14px; font-weight: 700; }
     .units { color: var(--muted); font-weight: 400; }
@@ -267,6 +288,8 @@
       .car-top::before, .car-top::after { height: 50px; }
       .car-top::before { top: 34px; left: -18px; box-shadow: 0 101px 0 #26364b; }
       .car-top::after { top: 34px; right: -18px; box-shadow: 0 101px 0 #26364b; }
+      .tire-map.is-dually .car-top::before { box-shadow: 0 101px 0 #26364b, -16px 101px 0 #26364b; }
+      .tire-map.is-dually .car-top::after { box-shadow: 0 101px 0 #26364b, 16px 101px 0 #26364b; }
       .tire-position { font-size: 11px; }
     }
   </style>
@@ -376,10 +399,15 @@
         <p class="suggestion-set" data-answer="${answer}" hidden><strong>Examples:</strong> ${examples.join('; ')}.</p>`).join('');
     }
     function renderInspectionItem(item) {
+      const rotationCompletedControl = item.id === 'tireRotation' ? `
+          <div class="rotation-completed" id="rotationCompletedWrap">
+            <label class="choice"><input type="checkbox" id="tireRotationCompleted" value="COMPLETED"><span>TIRE ROTATION COMPLETED TODAY</span></label>
+          </div>` : '';
       return `
         <div class="item">
           <div class="item-label">${item.label}</div>
           <div class="choices">${item.options.map(option => createChoice(item, option)).join('')}</div>
+          ${rotationCompletedControl}
           <div class="detail" id="${item.id}Detail">
             <label>${item.detailLabel || 'Required concern description'}
               <textarea id="${item.id}Description" rows="2" placeholder="DESCRIBE THE CONDITION OR RECOMMENDATION"></textarea>
@@ -413,19 +441,30 @@
       element.innerHTML = `<h2>${section.title}</h2><p class="section-note">${section.note}</p>` +
         section.items.map(item => renderInspectionItem(item) + (section.coolantProtection && item.id === 'washerFluid' ? renderCoolantProtection() : '')).join('') +
         (section.measurements ? `
-          <div class="item">
-            <div class="item-label">Tire tread measurements <span class="units">(32NDS)</span></div>
+          <div class="item" id="treadMeasurementItem">
+            <div class="tread-heading-row">
+              <div class="item-label">Tire tread measurements <span class="units">(32NDS)</span></div>
+              <label class="choice dually-toggle"><input type="checkbox" id="duallyToggle" value="DUALLY"><span>DUALLY (6 TIRES)</span></label>
+            </div>
             <div class="all-tread-entry">
-              <label class="field">SAME ON ALL FOUR TIRES <span class="units">(OPTIONAL)</span>
+              <label class="field"><span id="treadAllLabel">SAME ON ALL FOUR TIRES</span> <span class="units">(OPTIONAL)</span>
                 <div class="tread-control"><select id="treadAll" aria-label="Same tire tread for all four tires in 32nds">${treadDepthOptions}</select><span class="tread-unit">/32</span></div>
               </label>
             </div>
-            <div class="tire-map" role="group" aria-label="Top-down vehicle tire tread map">
+            <div class="tire-map" id="tireMap" role="group" aria-label="Top-down vehicle tire tread map">
               <div class="tire-map-heading">FRONT OF VEHICLE ↑</div>
               <label class="tire-position driver-front">DRIVER FRONT<div class="tread-control"><select id="treadDriverFront" aria-label="Driver front tire tread in 32nds">${treadDepthOptions}</select><span class="tread-unit">/32</span></div></label>
               <label class="tire-position passenger-front">PASSENGER FRONT<div class="tread-control"><select id="treadPassengerFront" aria-label="Passenger front tire tread in 32nds">${treadDepthOptions}</select><span class="tread-unit">/32</span></div></label>
-              <label class="tire-position driver-rear">DRIVER REAR<div class="tread-control"><select id="treadDriverRear" aria-label="Driver rear tire tread in 32nds">${treadDepthOptions}</select><span class="tread-unit">/32</span></div></label>
-              <label class="tire-position passenger-rear">PASSENGER REAR<div class="tread-control"><select id="treadPassengerRear" aria-label="Passenger rear tire tread in 32nds">${treadDepthOptions}</select><span class="tread-unit">/32</span></div></label>
+              <div class="rear-pair driver-rear-pair">
+                <span class="rear-pair-heading">DRIVER REAR</span>
+                <label class="rear-tread driver-rear"><span class="standard-rear-label">DRIVER REAR</span><span class="dually-rear-label">OUTER</span><div class="tread-control"><select id="treadDriverRear" aria-label="Driver rear tire tread in 32nds">${treadDepthOptions}</select><span class="tread-unit">/32</span></div></label>
+                <label class="rear-tread driver-rear-inner"><span>INNER</span><div class="tread-control"><select id="treadDriverRearInner" aria-label="Driver rear inner tire tread in 32nds">${treadDepthOptions}</select><span class="tread-unit">/32</span></div></label>
+              </div>
+              <div class="rear-pair passenger-rear-pair">
+                <span class="rear-pair-heading">PASSENGER REAR</span>
+                <label class="rear-tread passenger-rear"><span class="standard-rear-label">PASSENGER REAR</span><span class="dually-rear-label">OUTER</span><div class="tread-control"><select id="treadPassengerRear" aria-label="Passenger rear tire tread in 32nds">${treadDepthOptions}</select><span class="tread-unit">/32</span></div></label>
+                <label class="rear-tread passenger-rear-inner"><span>INNER</span><div class="tread-control"><select id="treadPassengerRearInner" aria-label="Passenger rear inner tire tread in 32nds">${treadDepthOptions}</select><span class="tread-unit">/32</span></div></label>
+              </div>
               <div class="car-top" aria-hidden="true"><span class="car-top-label">VEHICLE</span></div>
             </div>
           </div>
@@ -484,6 +523,7 @@
     function appendItemStory(item, lines) {
       const answer = selected(item.id);
       if (item.combineWithMeasurements) return;
+      if (item.id === 'tireRotation' && isTireRotationCompleted()) return;
       if (item.lines[answer]) lines.push(item.lines[answer]);
       if (item.detailOn.includes(answer)) {
         const prefix = item.includeAnswerInDetail ? `${item.failed}: ${answer} —` : `${item.failed}:`;
@@ -491,7 +531,7 @@
       }
     }
     function updateProgress() {
-      const completed = allItems.filter(item => selected(item.id)).length;
+      const completed = allItems.filter(item => selected(item.id) || (item.id === 'tireRotation' && isTireRotationCompleted())).length;
       document.getElementById('progress').textContent = `${completed} OF ${allItems.length} INSPECTIONS COMPLETE`;
     }
     function setCopyMessage(message, state = '') {
@@ -511,17 +551,72 @@
       clearTimeout(copyConfirmationTimer);
       copyConfirmationTimer = setTimeout(hideCopyConfirmation, 1800);
     }
-    const treadIds = ['treadDriverFront', 'treadPassengerFront', 'treadDriverRear', 'treadPassengerRear'];
+    const standardTreadIds = ['treadDriverFront', 'treadPassengerFront', 'treadDriverRear', 'treadPassengerRear'];
+    const duallyTreadIds = ['treadDriverRearInner', 'treadPassengerRearInner'];
+    function isDually() {
+      return document.getElementById('duallyToggle').checked;
+    }
+    function activeTreadIds() {
+      return isDually() ? [...standardTreadIds, ...duallyTreadIds] : standardTreadIds;
+    }
     const driverToPassengerTread = {
       treadDriverFront: 'treadPassengerFront',
-      treadDriverRear: 'treadPassengerRear'
+      treadDriverRear: 'treadPassengerRear',
+      treadDriverRearInner: 'treadPassengerRearInner'
     };
     const passengerTreadModified = {
       treadPassengerFront: false,
-      treadPassengerRear: false
+      treadPassengerRear: false,
+      treadPassengerRearInner: false
     };
     function resetPassengerTreadModificationFlags() {
       Object.keys(passengerTreadModified).forEach(id => { passengerTreadModified[id] = false; });
+    }
+    function isTireRotationCompleted() {
+      return !isDually() && document.getElementById('tireRotationCompleted').checked;
+    }
+    function rotateStandardTreadDepths() {
+      [['treadDriverFront', 'treadDriverRear'], ['treadPassengerFront', 'treadPassengerRear']].forEach(([front, rear]) => {
+        const frontValue = document.getElementById(front).value;
+        document.getElementById(front).value = document.getElementById(rear).value;
+        document.getElementById(rear).value = frontValue;
+      });
+      const passengerFrontWasModified = passengerTreadModified.treadPassengerFront;
+      passengerTreadModified.treadPassengerFront = passengerTreadModified.treadPassengerRear;
+      passengerTreadModified.treadPassengerRear = passengerFrontWasModified;
+    }
+    function updateDuallyMode() {
+      const dually = isDually();
+      const tireMap = document.getElementById('tireMap');
+      const treadAll = document.getElementById('treadAll');
+      const completed = document.getElementById('tireRotationCompleted');
+      tireMap.classList.toggle('is-dually', dually);
+      document.getElementById('rotationCompletedWrap').hidden = dually;
+      document.getElementById('treadAllLabel').textContent = dually ? 'SAME ON ALL SIX TIRES' : 'SAME ON ALL FOUR TIRES';
+      treadAll.setAttribute('aria-label', `Same tire tread for all ${dually ? 'six' : 'four'} tires in 32nds`);
+      document.getElementById('treadDriverRear').setAttribute('aria-label', dually ? 'Driver rear outer tire tread in 32nds' : 'Driver rear tire tread in 32nds');
+      document.getElementById('treadPassengerRear').setAttribute('aria-label', dually ? 'Passenger rear outer tire tread in 32nds' : 'Passenger rear tire tread in 32nds');
+      if (dually && completed.checked) {
+        completed.checked = false;
+        rotateStandardTreadDepths();
+      }
+      if (dually && treadAll.value) {
+        duallyTreadIds.forEach(id => { document.getElementById(id).value = treadAll.value; });
+        resetPassengerTreadModificationFlags();
+      }
+    }
+    function buildTreadDepthStory() {
+      const prefix = isTireRotationCompleted() ? 'TREAD DEPTH AFTER ROTATION' : 'TREAD DEPTH';
+      const positions = [
+        `LF ${text('treadDriverFront')}/32`,
+        `RF ${text('treadPassengerFront')}/32`,
+        isDually() ? `LR OUTER ${text('treadDriverRear')}/32` : `LR ${text('treadDriverRear')}/32`,
+        isDually() ? `LR INNER ${text('treadDriverRearInner')}/32` : `RR ${text('treadPassengerRear')}/32`
+      ];
+      if (isDually()) {
+        positions.push(`RR OUTER ${text('treadPassengerRear')}/32`, `RR INNER ${text('treadPassengerRearInner')}/32`);
+      }
+      return `${prefix}: ${positions.join(', ')}.`;
     }
     const pressureIds = ['pressureFront', 'pressureRear'];
     function getCoolantTestStatus() {
@@ -610,6 +705,7 @@
       document.getElementById('checklist').reset();
       resetPassengerTreadModificationFlags();
       restoreDefaultEntryFlags();
+      updateDuallyMode();
       updateTirePressureDeclinedState();
       updateCoolantTestState();
       updateBatteryTestState();
@@ -626,11 +722,22 @@
         set.hidden = set.dataset.answer !== answer;
       });
     }
+    updateDuallyMode();
     updateProgress();
     document.addEventListener('change', event => {
+      if (event.target.id === 'duallyToggle') {
+        updateDuallyMode();
+        updateProgress();
+        return;
+      }
+      if (event.target.id === 'tireRotationCompleted') {
+        if (!isDually()) rotateStandardTreadDepths();
+        updateProgress();
+        return;
+      }
       if (event.target.id === 'treadAll') {
         if (event.target.value) {
-          treadIds.forEach(id => { document.getElementById(id).value = event.target.value; });
+          activeTreadIds().forEach(id => { document.getElementById(id).value = event.target.value; });
           resetPassengerTreadModificationFlags();
         }
         return;
@@ -648,7 +755,7 @@
         document.getElementById('treadAll').value = '';
         return;
       }
-      if (treadIds.includes(event.target.id)) {
+      if (activeTreadIds().includes(event.target.id)) {
         document.getElementById('treadAll').value = '';
         return;
       }
@@ -732,6 +839,7 @@
     });
     function validate() {
       for (const item of allItems) {
+        if (item.id === 'tireRotation' && isTireRotationCompleted()) continue;
         const answer = selected(item.id);
         if (!answer) {
           document.querySelector(`input[name="${item.id}"]`)?.closest('.item').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -752,10 +860,7 @@
         return false;
       }
       const measurements = [
-        'treadDriverFront',
-        'treadPassengerFront',
-        'treadDriverRear',
-        'treadPassengerRear',
+        ...activeTreadIds(),
         ...(document.getElementById('tirePressureDeclined').checked ? [] : ['pressureFront', 'pressureRear'])
       ];
       const measurementLabels = {};
@@ -826,7 +931,8 @@
           }
         });
         if (section.measurements) {
-          lines.push(`TREAD DEPTH: LF ${text('treadDriverFront')}/32, RF ${text('treadPassengerFront')}/32, LR ${text('treadDriverRear')}/32, RR ${text('treadPassengerRear')}/32.`);
+          if (isTireRotationCompleted()) lines.push('TIRE ROTATION COMPLETED TODAY.');
+          lines.push(buildTreadDepthStory());
           (section.tireItems || []).forEach(item => appendItemStory(item, lines));
           if (document.getElementById('tirePressureDeclined').checked) {
             lines.push('CUSTOMER DECLINED TIRE PRESSURE ADJUSTMENT.');
