@@ -149,7 +149,7 @@
     .tire-map.is-dually .rear-tread .tread-control { gap: 2px; }
     .tire-map.is-dually .rear-tread .tread-control select { padding: 8px 4px; font-size: 16px; }
     .tire-map.is-dually .rear-tread .tread-unit { font-size: 12px; }
-    .rotation-completed { margin-top: 10px; }
+    .tire-map.is-dually .car-top { width: 88px; }
     .car-top {
       position: relative;
       grid-column: 2;
@@ -290,6 +290,7 @@
       .car-top::after { top: 34px; right: -18px; box-shadow: 0 101px 0 #26364b; }
       .tire-map.is-dually .car-top::before { box-shadow: 0 101px 0 #26364b, -16px 101px 0 #26364b; }
       .tire-map.is-dually .car-top::after { box-shadow: 0 101px 0 #26364b, 16px 101px 0 #26364b; }
+      .tire-map.is-dually .car-top { width: 60px; }
       .tire-position { font-size: 11px; }
     }
   </style>
@@ -362,7 +363,7 @@
         items: [],
         tireItems: [
           { id: 'tireCondition', label: 'Tire condition', options: ['NO CONCERN', 'UNEVEN WEAR', 'DAMAGE / OTHER'], detailOn: ['UNEVEN WEAR', 'DAMAGE / OTHER'], lines: {}, failed: 'TIRE CONDITION', includeAnswerInDetail: true, suggestions: { 'UNEVEN WEAR': ['Inner shoulder wear', 'Outer shoulder wear', 'Cupping or scalloping', 'Feathering'], 'DAMAGE / OTHER': ['Sidewall damage', 'Tire bulge', 'Tread separation', 'Nail or screw in tread'] } },
-          { id: 'tireRotation', label: 'Recommend Tire Rotation?', options: ['NO', 'YES', 'CUSTOMER DECLINED'], detailOn: [], lines: { YES: 'TIRE ROTATION RECOMMENDED TODAY.', 'CUSTOMER DECLINED': 'TIRE ROTATION RECOMMENDED TODAY; CUSTOMER DECLINED.' } }
+          { id: 'tireRotation', label: 'Recommend Tire Rotation?', options: ['NO', 'YES', 'CUSTOMER DECLINED', 'COMPLETED TODAY'], detailOn: [], lines: { YES: 'TIRE ROTATION RECOMMENDED TODAY.', 'CUSTOMER DECLINED': 'TIRE ROTATION RECOMMENDED TODAY; CUSTOMER DECLINED.' } }
         ],
         measurements: true
       },
@@ -387,27 +388,24 @@
     ]);
     const sectionContainer = document.getElementById('sections');
     let copyConfirmationTimer;
+    let rotationTreadSwapped = false;
     const treadDepthOptions = [''].concat(Array.from({ length: 21 }, (_, value) => value))
       .map(value => `<option value="${value}">${value === '' ? 'SELECT' : value}</option>`).join('');
 
     function createChoice(item, option) {
       const choiceClass = item.id === 'tireRotation' ? 'choice tire-rotation-choice' : 'choice';
-      return `<label class="${choiceClass}"><input type="radio" name="${item.id}" value="${option}"><span>${option}</span></label>`;
+      const completedChoiceId = item.id === 'tireRotation' && option === 'COMPLETED TODAY' ? ' id="rotationCompletedChoice"' : '';
+      return `<label class="${choiceClass}"${completedChoiceId}><input type="radio" name="${item.id}" value="${option}"><span>${option}</span></label>`;
     }
     function renderSuggestionSets(item) {
       return Object.entries(item.suggestions || {}).map(([answer, examples]) => `
         <p class="suggestion-set" data-answer="${answer}" hidden><strong>Examples:</strong> ${examples.join('; ')}.</p>`).join('');
     }
     function renderInspectionItem(item) {
-      const rotationCompletedControl = item.id === 'tireRotation' ? `
-          <div class="rotation-completed" id="rotationCompletedWrap">
-            <label class="choice"><input type="checkbox" id="tireRotationCompleted" value="COMPLETED"><span>TIRE ROTATION COMPLETED TODAY</span></label>
-          </div>` : '';
       return `
         <div class="item">
           <div class="item-label">${item.label}</div>
           <div class="choices">${item.options.map(option => createChoice(item, option)).join('')}</div>
-          ${rotationCompletedControl}
           <div class="detail" id="${item.id}Detail">
             <label>${item.detailLabel || 'Required concern description'}
               <textarea id="${item.id}Description" rows="2" placeholder="DESCRIBE THE CONDITION OR RECOMMENDATION"></textarea>
@@ -531,7 +529,7 @@
       }
     }
     function updateProgress() {
-      const completed = allItems.filter(item => selected(item.id) || (item.id === 'tireRotation' && isTireRotationCompleted())).length;
+      const completed = allItems.filter(item => selected(item.id)).length;
       document.getElementById('progress').textContent = `${completed} OF ${allItems.length} INSPECTIONS COMPLETE`;
     }
     function setCopyMessage(message, state = '') {
@@ -573,7 +571,7 @@
       Object.keys(passengerTreadModified).forEach(id => { passengerTreadModified[id] = false; });
     }
     function isTireRotationCompleted() {
-      return !isDually() && document.getElementById('tireRotationCompleted').checked;
+      return !isDually() && selected('tireRotation') === 'COMPLETED TODAY';
     }
     function rotateStandardTreadDepths() {
       [['treadDriverFront', 'treadDriverRear'], ['treadPassengerFront', 'treadPassengerRear']].forEach(([front, rear]) => {
@@ -585,20 +583,25 @@
       passengerTreadModified.treadPassengerFront = passengerTreadModified.treadPassengerRear;
       passengerTreadModified.treadPassengerRear = passengerFrontWasModified;
     }
+    function updateTireRotationCompletedState() {
+      const completed = isTireRotationCompleted();
+      if (completed === rotationTreadSwapped) return;
+      rotateStandardTreadDepths();
+      rotationTreadSwapped = completed;
+    }
     function updateDuallyMode() {
       const dually = isDually();
       const tireMap = document.getElementById('tireMap');
       const treadAll = document.getElementById('treadAll');
-      const completed = document.getElementById('tireRotationCompleted');
       tireMap.classList.toggle('is-dually', dually);
-      document.getElementById('rotationCompletedWrap').hidden = dually;
+      document.getElementById('rotationCompletedChoice').hidden = dually;
       document.getElementById('treadAllLabel').textContent = dually ? 'SAME ON ALL SIX TIRES' : 'SAME ON ALL FOUR TIRES';
       treadAll.setAttribute('aria-label', `Same tire tread for all ${dually ? 'six' : 'four'} tires in 32nds`);
       document.getElementById('treadDriverRear').setAttribute('aria-label', dually ? 'Driver rear outer tire tread in 32nds' : 'Driver rear tire tread in 32nds');
       document.getElementById('treadPassengerRear').setAttribute('aria-label', dually ? 'Passenger rear outer tire tread in 32nds' : 'Passenger rear tire tread in 32nds');
-      if (dually && completed.checked) {
-        completed.checked = false;
-        rotateStandardTreadDepths();
+      if (dually && selected('tireRotation') === 'COMPLETED TODAY') {
+        document.querySelector('input[name="tireRotation"][value="NO"]').checked = true;
+        updateTireRotationCompletedState();
       }
       if (dually && treadAll.value) {
         duallyTreadIds.forEach(id => { document.getElementById(id).value = treadAll.value; });
@@ -703,6 +706,7 @@
     }
     function resetChecklist() {
       document.getElementById('checklist').reset();
+      rotationTreadSwapped = false;
       resetPassengerTreadModificationFlags();
       restoreDefaultEntryFlags();
       updateDuallyMode();
@@ -730,10 +734,8 @@
         updateProgress();
         return;
       }
-      if (event.target.id === 'tireRotationCompleted') {
-        if (!isDually()) rotateStandardTreadDepths();
-        updateProgress();
-        return;
+      if (event.target.name === 'tireRotation') {
+        updateTireRotationCompletedState();
       }
       if (event.target.id === 'treadAll') {
         if (event.target.value) {
@@ -839,7 +841,6 @@
     });
     function validate() {
       for (const item of allItems) {
-        if (item.id === 'tireRotation' && isTireRotationCompleted()) continue;
         const answer = selected(item.id);
         if (!answer) {
           document.querySelector(`input[name="${item.id}"]`)?.closest('.item').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -931,7 +932,6 @@
           }
         });
         if (section.measurements) {
-          if (isTireRotationCompleted()) lines.push('TIRE ROTATION COMPLETED TODAY.');
           lines.push(buildTreadDepthStory());
           (section.tireItems || []).forEach(item => appendItemStory(item, lines));
           if (document.getElementById('tirePressureDeclined').checked) {
